@@ -312,12 +312,7 @@ class PSDSmartObjectInspector:
 class PSDMockupEmbedder:
     @classmethod
     def INPUT_TYPES(cls):
-        psd_files: List[str] = []
-        if folder_paths and hasattr(folder_paths, "get_filename_list"):
-            try:
-                psd_files = folder_paths.get_filename_list("input")
-            except Exception:
-                psd_files = []
+        psd_files = _list_input_files(ALLOWED_PSD_EXTENSIONS)
         if not psd_files:
             psd_files = ["<upload PSD via ⬆ icon>"]
         return {
