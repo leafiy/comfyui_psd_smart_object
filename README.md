@@ -13,10 +13,7 @@ matches what you would get when replacing the layer inside Photoshop.
   target.
 - **PSD Mockup Embedder** – Replaces one or more smart objects with the input
   image. The node renders the PSD without the target layers, warps the image
-  using OpenCV, and outputs a ready-to-use RGBA tensor.
-- **PSD File Upload** / **Mockup Image Upload** – Small helper nodes that let you
-  pick PSD/PSB or artwork files directly from `ComfyUI/input` without typing
-  paths.
+  using OpenCV, and outputs a ready-to-use RGBA tensor plus an auto-saved PNG.
 - Works with PSD/PSB files, multiple smart objects, and either ComfyUI `IMAGE`
   tensors or file paths.
 
@@ -31,14 +28,14 @@ matches what you would get when replacing the layer inside Photoshop.
 
 ## Usage
 1. Place PSD/PSB mockups under `ComfyUI/input/psd` (or pass an absolute path).
-2. Use **PSD File Upload** to pick a PSD/PSB from `ComfyUI/input`. Its output
-   plugs directly into **PSD Mockup Embedder**, so you never have to type the
-   path.
-3. Load your artwork with **Mockup Image Upload** (or any stock `Load Image`
-   node) and connect its `IMAGE` output to the embedder. Leave
-   `smart_object_names` empty to target the first smart object automatically,
-   or pass a comma-separated list to specify others.
-4. Feed everything into **PSD Mockup Embedder**. The node outputs:
+2. In **PSD Mockup Embedder**, click the default ComfyUI upload icon next to
+   the `psd_file` dropdown to upload/refresh your PSD under `ComfyUI/input`
+   (or pick an existing one from the list).
+3. Load your artwork with any stock `Load Image` (or `Upload Image`) node and
+   connect its `IMAGE` output to the embedder. Leave `smart_object_names`
+   empty to target the first smart object automatically, or pass a
+   comma-separated list to specify others.
+4. Trigger the workflow. The node outputs:
    - `mockup_image`: an `IMAGE` tensor that you can preview or post-process.
    - `debug_info`: JSON describing the layers that were replaced.
    - `png_path`: the auto-saved PNG under `ComfyUI/output`, so you no longer

@@ -33,7 +33,6 @@ except Exception:  # pragma: no cover - allows running outside ComfyUI
 
 
 ALLOWED_PSD_EXTENSIONS = (".psd", ".psb")
-IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp")
 QUAD_INDICES = ((0, 1), (2, 3), (4, 5), (6, 7))
 PNG_SUFFIX = ".png"
 
@@ -90,24 +89,6 @@ def _resolve_input_path(filename: str, allowed_exts: Sequence[str]) -> str:
     if allowed_exts and ext not in allowed_exts:
         raise ValueError(f"Unsupported file extension '{ext}'. Expected one of {allowed_exts}.")
     return candidate
-
-
-def _list_input_files(allowed_exts: Sequence[str]) -> List[str]:
-    if not folder_paths:
-        return []
-    getter = getattr(folder_paths, "get_filename_list", None)
-    if not callable(getter):
-        return []
-    try:
-        candidates = getter("input")
-    except Exception:
-        return []
-    files = []
-    for item in candidates:
-        lower = item.lower()
-        if not allowed_exts or any(lower.endswith(ext) for ext in allowed_exts):
-            files.append(item)
-    return files
 
 
 def _collect_smart_layers(group: Iterable[Layer]) -> List[SmartLayerInfo]:
@@ -258,44 +239,6 @@ def _save_png(image: Image.Image, psd_path: str) -> str:
     return out_path
 
 
-class PSDFileUpload:
-    @classmethod
-    def INPUT_TYPES(cls):
-        files = _list_input_files(ALLOWED_PSD_EXTENSIONS)
-        if not files:
-            files = ["<add PSD under ComfyUI/input>"]
-        return {"required": {"psd_file": (files,)}}
-
-    CATEGORY = "psd/mockup"
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("psd_path",)
-    FUNCTION = "select"
-
-    def select(self, psd_file: str):
-        path = _resolve_input_path(psd_file, ALLOWED_PSD_EXTENSIONS)
-        return (path,)
-
-
-class MockupImageUpload:
-    @classmethod
-    def INPUT_TYPES(cls):
-        files = _list_input_files(IMAGE_EXTENSIONS)
-        if not files:
-            files = ["<add image under ComfyUI/input>"]
-        return {"required": {"image_file": (files,)}}
-
-    CATEGORY = "psd/mockup"
-    RETURN_TYPES = ("IMAGE", "STRING")
-    RETURN_NAMES = ("image", "image_path")
-    FUNCTION = "load"
-
-    def load(self, image_file: str):
-        path = _resolve_input_path(image_file, IMAGE_EXTENSIONS)
-        image = _load_image_from_path(path)
-        tensor = _pil_to_tensor(image)
-        return (tensor, path)
-
-
 class PSDSmartObjectInspector:
     @classmethod
     def INPUT_TYPES(cls):
@@ -325,9 +268,17 @@ class PSDSmartObjectInspector:
 class PSDMockupEmbedder:
     @classmethod
     def INPUT_TYPES(cls):
+        psd_files: List[str] = []
+        if folder_paths and hasattr(folder_paths, "get_filename_list"):
+            try:
+                psd_files = folder_paths.get_filename_list("input")
+            except Exception:
+                psd_files = []
+        if not psd_files:
+            psd_files = ["<upload PSD via ⬆ icon>"]
         return {
             "required": {
-                "psd_path": ("STRING", {"default": "", "multiline": False}),
+                "psd_file": (psd_files,),
                 "mockup_image": ("IMAGE",),
             },
             "optional": {
@@ -342,11 +293,11 @@ class PSDMockupEmbedder:
 
     def apply(
         self,
-        psd_path: str,
+        psd_file: str,
         mockup_image,
         smart_object_names: str = "",
     ):
-        resolved_psd = _resolve_input_path(psd_path, ALLOWED_PSD_EXTENSIONS)
+        resolved_psd = _resolve_input_path(psd_file, ALLOWED_PSD_EXTENSIONS)
         psd = PSDImage.open(resolved_psd)
         source_image = _tensor_to_pil(mockup_image)
         if source_image is None:
@@ -389,15 +340,11 @@ class PSDMockupEmbedder:
 
 
 NODE_CLASS_MAPPINGS = {
-    "PSDFileUpload": PSDFileUpload,
-    "MockupImageUpload": MockupImageUpload,
     "PSDSmartObjectInspector": PSDSmartObjectInspector,
     "PSDMockupEmbedder": PSDMockupEmbedder,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "PSDFileUpload": "PSD File Upload",
-    "MockupImageUpload": "Mockup Image Upload",
     "PSDSmartObjectInspector": "PSD → Smart Object Info",
     "PSDMockupEmbedder": "PSD Mockup Embedder",
 }
