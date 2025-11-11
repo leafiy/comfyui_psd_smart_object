@@ -29,12 +29,15 @@ matches what you would get when replacing the layer inside Photoshop.
 ## Usage
 1. Place PSD/PSB mockups under `ComfyUI/input/psd` (or pass an absolute path).
 2. Run **PSD Smart Object Inspector** to list available smart objects. Copy
-   the names you want (comma-separated).
+   the names you want (comma-separated). If you leave `smart_object_names`
+   empty, the embedder automatically targets the first smart object it finds.
 3. Provide an `IMAGE` input from a standard loader node or fill the
    `mockup_image_path` with a filename that also lives in `ComfyUI/input`.
 4. Feed everything into **PSD Mockup Embedder**. The node outputs:
-   - `mockup_image`: an `IMAGE` tensor that you can preview or save in ComfyUI.
+   - `mockup_image`: an `IMAGE` tensor that you can preview or post-process.
    - `debug_info`: JSON describing the layers that were replaced.
+   - `png_path`: the auto-saved PNG under `ComfyUI/output`, so you no longer
+     need an extra `Save Image` node to receive a PNG file.
 
 ### Notes & Limitations
 - The result is flattened, so advanced Photoshop blend modes (e.g., highlight

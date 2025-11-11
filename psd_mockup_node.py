@@ -12,7 +12,9 @@ import json
 import math
 import os
 from dataclasses import dataclass
-from typing import Callable, Iterable, List, Optional, Sequence, Tuple
+from datetime import datetime
+from pathlib import Path
+from typing import Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -32,6 +34,7 @@ except Exception:  # pragma: no cover - allows running outside ComfyUI
 
 ALLOWED_PSD_EXTENSIONS = (".psd", ".psb")
 QUAD_INDICES = ((0, 1), (2, 3), (4, 5), (6, 7))
+PNG_SUFFIX = ".png"
 
 
 @dataclass
@@ -150,8 +153,10 @@ def _normalize_name(name: str) -> str:
 
 
 def _select_layers(layers: List[SmartLayerInfo], names: Sequence[str]) -> List[SmartLayerInfo]:
-    if not names:
-        return layers
+    if not names or len(names) == 0:
+        if not layers:
+            return []
+        return [layers[0]]
     lookup = {_normalize_name(name) for name in names if name.strip()}
     if not lookup:
         return layers
@@ -216,6 +221,24 @@ def _polygon_mask(quad: Sequence[float], canvas_size: Tuple[int, int]) -> Image.
     return mask
 
 
+def _output_directory() -> str:
+    if folder_paths and hasattr(folder_paths, "get_output_directory"):
+        return folder_paths.get_output_directory()
+    default_dir = os.path.join(os.getcwd(), "output")
+    os.makedirs(default_dir, exist_ok=True)
+    return default_dir
+
+
+def _save_png(image: Image.Image, psd_path: str) -> str:
+    base_name = Path(psd_path).stem or "psd_mockup"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{base_name}_{timestamp}{PNG_SUFFIX}"
+    out_dir = _output_directory()
+    out_path = os.path.join(out_dir, filename)
+    image.save(out_path, "PNG")
+    return out_path
+
+
 class PSDSmartObjectInspector:
     @classmethod
     def INPUT_TYPES(cls):
@@ -257,8 +280,8 @@ class PSDMockupEmbedder:
         }
 
     CATEGORY = "psd/mockup"
-    RETURN_TYPES = ("IMAGE", "STRING")
-    RETURN_NAMES = ("mockup_image", "debug_info")
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING")
+    RETURN_NAMES = ("mockup_image", "debug_info", "png_path")
     FUNCTION = "apply"
 
     @staticmethod
@@ -312,12 +335,13 @@ class PSDMockupEmbedder:
             )
 
         result_tensor = _pil_to_tensor(base_rgba)
+        saved_path = _save_png(base_rgba, psd_path)
         debug_payload = {
             "psd": os.path.basename(psd_path),
             "layer_count": len(selected),
             "layers": metadata,
         }
-        return (result_tensor, json.dumps(debug_payload, indent=2))
+        return (result_tensor, json.dumps(debug_payload, indent=2), saved_path)
 
 
 NODE_CLASS_MAPPINGS = {
