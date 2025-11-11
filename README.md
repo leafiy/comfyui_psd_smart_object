@@ -31,9 +31,10 @@ matches what you would get when replacing the layer inside Photoshop.
 
 ## Usage
 1. Place PSD/PSB mockups under `ComfyUI/input/psd` (or pass an absolute path).
-2. Use **PSD File Upload** (or the `psd_file` input on **PSD Mockup Embedder**)
-   and click the built-in “choose PSD to upload” button. The frontend script will
-   upload the file to `ComfyUI/input` and automatically select it for you.
+2. Use **PSD File Upload** and click the built-in “choose PSD to upload” button.
+   Connect its output directly into the `psd_path` input of **PSD Mockup
+   Embedder** (or Inspector). The frontend script uploads to `ComfyUI/input`
+   and automatically feeds the resulting path through the link.
 3. Load your artwork with any stock `Load Image` (or `Upload Image`) node and
    connect its `IMAGE` output to the embedder. Leave `smart_object_names`
    empty to target the first smart object automatically, or pass a

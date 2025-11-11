@@ -1,7 +1,7 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-const PSD_NODE_CLASSES = ["PSDFileUploader", "PSDMockupEmbedder", "PSDSmartObjectInspector"];
+const PSD_NODE_CLASSES = ["PSDFileUploader", "PSDSmartObjectInspector"];
 const ACCEPT_EXTENSIONS = [".psd", ".psb"];
 
 function uploadPSDFile(file, node, onProgress) {

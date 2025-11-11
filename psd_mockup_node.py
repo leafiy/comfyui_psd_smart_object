@@ -256,17 +256,15 @@ def _save_png(image: Image.Image, psd_path: str) -> str:
 class PSDFileUploader:
     @classmethod
     def INPUT_TYPES(cls):
-        psd_files = _list_input_files(ALLOWED_PSD_EXTENSIONS)
-        if not psd_files:
-            psd_files = ["<upload or pick PSD>"]
         return {
             "required": {
                 "psd_file": (
-                    psd_files,
+                    "STRING",
                     {
-                        "file_upload": True,
-                        "file_upload_types": ["psd", "psb"],
-                        "tooltip": "Click the upload icon to add a PSD/PSB into ComfyUI/input",
+                        "default": "",
+                        "multiline": False,
+                        "placeholder": "Upload or paste a PSD path",
+                        "tooltip": "Use the upload button to select a PSD/PSB or paste a path manually",
                     },
                 )
             }
@@ -312,12 +310,16 @@ class PSDSmartObjectInspector:
 class PSDMockupEmbedder:
     @classmethod
     def INPUT_TYPES(cls):
-        psd_files = _list_input_files(ALLOWED_PSD_EXTENSIONS)
-        if not psd_files:
-            psd_files = ["<upload PSD via ⬆ icon>"]
         return {
             "required": {
-                "psd_file": (psd_files,),
+                "psd_path": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "forceInput": True,
+                        "tooltip": "Connect PSD File Upload or provide an absolute path",
+                    },
+                ),
                 "mockup_image": ("IMAGE",),
             },
             "optional": {
@@ -332,11 +334,11 @@ class PSDMockupEmbedder:
 
     def apply(
         self,
-        psd_file: str,
+        psd_path: str,
         mockup_image,
         smart_object_names: str = "",
     ):
-        resolved_psd = _resolve_input_path(psd_file, ALLOWED_PSD_EXTENSIONS)
+        resolved_psd = _resolve_input_path(psd_path, ALLOWED_PSD_EXTENSIONS)
         psd = PSDImage.open(resolved_psd)
         source_image = _tensor_to_pil(mockup_image)
         if source_image is None:
