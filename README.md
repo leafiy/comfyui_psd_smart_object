@@ -12,9 +12,10 @@ matches what you would get when replacing the layer inside Photoshop.
   bounding box, transform box). Use it to confirm the layer names you want to
   target.
 - **PSD Mockup Embedder** – Uploads PSD/PSB files directly from the node,
-  replaces the selected smart objects with your image, resizes the result to any
-  width (default 800 px), and emits the composited tensor plus an auto-saved
-  PNG.
+  reuses the PSD’s original clipping stack (shadows, highlights, rounded
+  corners, etc.), projects your image into the smart objects, resizes the result
+  to any width (default 800 px), and emits the composited tensor plus an
+  auto-saved PNG.
 - Works with PSD/PSB files, multiple smart objects, and either ComfyUI `IMAGE`
   tensors or file paths.
 
