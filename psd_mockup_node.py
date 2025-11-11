@@ -233,6 +233,15 @@ def _polygon_mask(quad: Sequence[float], canvas_size: Tuple[int, int]) -> Image.
     return mask
 
 
+def _build_layer_lookup(psd: PSDImage) -> dict:
+    lookup = {}
+    for layer in psd.descendants():
+        layer_id = getattr(layer, "layer_id", None)
+        if layer_id is not None:
+            lookup[layer_id] = layer
+    return lookup
+
+
 def _collect_clipping_stack(layer: Layer) -> List[Layer]:
     stack = [layer]
     parent = layer.parent
@@ -401,15 +410,19 @@ class PSDMockupEmbedder:
             selected_norm = {_normalize_name(layer.name) for layer in selected}
             fallback_used = not bool(requested_norm & selected_norm)
 
+        layer_lookup = _build_layer_lookup(psd)
         canvas_size = psd.size
-        base = _compose_without_layers(psd, [layer.layer_id for layer in selected])
+        base = _compose_without_layers(psd, [info.layer_id for info in selected])
         base_rgba = base.convert("RGBA")
 
         metadata = []
-        for layer in selected:
-            quad = layer.transform_box
+        for info in selected:
+            layer = layer_lookup.get(info.layer_id)
+            if layer is None:
+                continue
+            quad = info.transform_box
             if quad is None:
-                left, top, right, bottom = layer.bbox
+                left, top, right, bottom = info.bbox
                 quad = (left, top, right, top, right, bottom, left, bottom)
 
             stack_layers = _collect_clipping_stack(layer)
@@ -428,8 +441,8 @@ class PSDMockupEmbedder:
             base_rgba = Image.composite(warped, base_rgba, composite_mask)
             metadata.append(
                 {
-                    "layer_id": layer.layer_id,
-                    "name": layer.name,
+                    "layer_id": info.layer_id,
+                    "name": info.name,
                     "quad": quad,
                 }
             )
