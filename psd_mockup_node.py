@@ -168,15 +168,13 @@ def _normalize_name(name: str) -> str:
 
 def _select_layers(layers: List[SmartLayerInfo], names: Sequence[str]) -> List[SmartLayerInfo]:
     if not names or len(names) == 0:
-        if not layers:
-            return []
-        return [layers[0]]
+        return layers[:1] if layers else []
     lookup = {_normalize_name(name) for name in names if name.strip()}
     if not lookup:
-        return layers
+        return layers[:1] if layers else []
     result = [layer for layer in layers if _normalize_name(layer.name) in lookup]
     if not result:
-        raise ValueError(f"No smart-object layers matched {names}.")
+        return layers[:1] if layers else []
     return result
 
 
@@ -297,7 +295,7 @@ class PSDSmartObjectInspector:
 
     def inspect(self, psd_file: str, include_hidden: bool):
         psd_path = _resolve_input_path(psd_file, ALLOWED_PSD_EXTENSIONS)
-        psd = PSDImage.open(psd_path)
+        psd = PSDImage.open(psd_path, strict=False)
         layers = _collect_smart_layers(psd)
         payload = []
         for layer in layers:
@@ -339,15 +337,21 @@ class PSDMockupEmbedder:
         smart_object_names: str = "",
     ):
         resolved_psd = _resolve_input_path(psd_path, ALLOWED_PSD_EXTENSIONS)
-        psd = PSDImage.open(resolved_psd)
+        psd = PSDImage.open(resolved_psd, strict=False)
         source_image = _tensor_to_pil(mockup_image)
         if source_image is None:
             raise ValueError("mockup_image input is required. Use MockupImageUpload or any IMAGE source.")
 
         layers = _collect_smart_layers(psd)
-        selected = _select_layers(layers, _split_names(smart_object_names))
+        requested_names = _split_names(smart_object_names)
+        selected = _select_layers(layers, requested_names)
         if not selected:
             raise ValueError("No smart-object layers available inside the PSD.")
+        fallback_used = False
+        if requested_names:
+            requested_norm = {_normalize_name(name) for name in requested_names}
+            selected_norm = {_normalize_name(layer.name) for layer in selected}
+            fallback_used = not bool(requested_norm & selected_norm)
 
         canvas_size = psd.size
         base = _compose_without_layers(psd, [layer.layer_id for layer in selected])
@@ -377,6 +381,8 @@ class PSDMockupEmbedder:
             "layer_count": len(selected),
             "layers": metadata,
         }
+        if fallback_used:
+            debug_payload["note"] = "Requested smart object names were not found; falling back to the first smart object layer."
         return (result_tensor, json.dumps(debug_payload, indent=2), saved_path)
 
 
