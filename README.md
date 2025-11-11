@@ -14,9 +14,9 @@ matches what you would get when replacing the layer inside Photoshop.
 - **PSD Mockup Embedder** – Replaces one or more smart objects with the input
   image. The node renders the PSD without the target layers, warps the image
   using OpenCV, and outputs a ready-to-use RGBA tensor plus an auto-saved PNG.
-- **PSD File Upload** – A helper input node that exposes ComfyUI's built-in
-  file upload widget (accepting `.psd`/`.psb`). Use it to drop mockups
-  straight from your computer without touching the filesystem manually.
+- **PSD File Upload** – Provides a dropdown with the same upload button ComfyUI
+  uses everywhere else (the ⬆ icon). Click it to upload PSD/PSB files straight
+  into `ComfyUI/input` and feed the resulting path to other nodes.
 - Works with PSD/PSB files, multiple smart objects, and either ComfyUI `IMAGE`
   tensors or file paths.
 
@@ -31,9 +31,9 @@ matches what you would get when replacing the layer inside Photoshop.
 
 ## Usage
 1. Place PSD/PSB mockups under `ComfyUI/input/psd` (or pass an absolute path).
-2. Use **PSD File Upload** (widget='inputfile') to drop your PSD/PSB directly in
-   the node graph. Its output plugs into `psd_file` on **PSD Mockup Embedder**
-   or **PSD Smart Object Inspector**.
+2. Use **PSD File Upload** to drop your PSD/PSB directly in the node graph (the
+   dropdown shows the usual ⬆ upload button). Its output plugs into `psd_file`
+   on **PSD Mockup Embedder** or **PSD Smart Object Inspector**.
 3. Load your artwork with any stock `Load Image` (or `Upload Image`) node and
    connect its `IMAGE` output to the embedder. Leave `smart_object_names`
    empty to target the first smart object automatically, or pass a

@@ -91,6 +91,20 @@ def _resolve_input_path(filename: str, allowed_exts: Sequence[str]) -> str:
     return candidate
 
 
+def _list_input_files(allowed_exts: Sequence[str]) -> List[str]:
+    if not folder_paths or not hasattr(folder_paths, "get_filename_list"):
+        return []
+    try:
+        files = folder_paths.get_filename_list("input")
+    except Exception:
+        return []
+    if not allowed_exts:
+        return files
+    allowed = tuple(ext.lower() for ext in allowed_exts)
+    filtered = [name for name in files if name.lower().endswith(allowed)]
+    return filtered or files
+
+
 def _collect_smart_layers(group: Iterable[Layer]) -> List[SmartLayerInfo]:
     layers: List[SmartLayerInfo] = []
 
@@ -242,18 +256,10 @@ def _save_png(image: Image.Image, psd_path: str) -> str:
 class PSDFileUploader:
     @classmethod
     def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "psd_file": (
-                    "STRING",
-                    {
-                        "default": "",
-                        "widget": "inputfile",
-                        "file_extensions": ["psd", "psb"],
-                    },
-                )
-            }
-        }
+        files = _list_input_files(ALLOWED_PSD_EXTENSIONS)
+        if not files:
+            files = ["<upload PSD via ⬆ icon>"]
+        return {"required": {"psd_file": (files,)}}
 
     CATEGORY = "psd/mockup"
     RETURN_TYPES = ("STRING",)
@@ -261,10 +267,7 @@ class PSDFileUploader:
     FUNCTION = "upload"
 
     def upload(self, psd_file: str):
-        """
-        The ComfyUI frontend uploads the file into ComfyUI/input automatically
-        when widget='inputfile'. We just echo the resulting relative path.
-        """
+        """Return the resolved path inside ComfyUI/input for the chosen PSD."""
         path = _resolve_input_path(psd_file, ALLOWED_PSD_EXTENSIONS)
         return (path,)
 
