@@ -251,34 +251,6 @@ def _save_png(image: Image.Image, psd_path: str) -> str:
     return out_path
 
 
-class PSDFileUploader:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "psd_file": (
-                    "STRING",
-                    {
-                        "default": "",
-                        "multiline": False,
-                        "placeholder": "Upload or paste a PSD path",
-                        "tooltip": "Use the upload button to select a PSD/PSB or paste a path manually",
-                    },
-                )
-            }
-        }
-
-    CATEGORY = "psd/mockup"
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("psd_path",)
-    FUNCTION = "upload"
-
-    def upload(self, psd_file: str):
-        """Return the resolved path inside ComfyUI/input for the chosen PSD."""
-        path = _resolve_input_path(psd_file, ALLOWED_PSD_EXTENSIONS)
-        return (path,)
-
-
 class PSDSmartObjectInspector:
     @classmethod
     def INPUT_TYPES(cls):
@@ -310,18 +282,29 @@ class PSDMockupEmbedder:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "psd_path": (
+                "psd_file": (
                     "STRING",
                     {
                         "default": "",
-                        "forceInput": True,
-                        "tooltip": "Connect PSD File Upload or provide an absolute path",
+                        "multiline": False,
+                        "placeholder": "Upload or paste PSD/PSB path",
+                        "tooltip": "Use the built-in upload button or paste a path manually",
                     },
                 ),
                 "mockup_image": ("IMAGE",),
             },
             "optional": {
                 "smart_object_names": ("STRING", {"default": "", "multiline": False}),
+                "output_width": (
+                    "INT",
+                    {
+                        "default": 800,
+                        "min": 0,
+                        "max": 8192,
+                        "step": 1,
+                        "tooltip": "Resize final image to this width (0 keeps original size)",
+                    },
+                ),
             },
         }
 
@@ -332,11 +315,12 @@ class PSDMockupEmbedder:
 
     def apply(
         self,
-        psd_path: str,
+        psd_file: str,
         mockup_image,
         smart_object_names: str = "",
+        output_width: int = 800,
     ):
-        resolved_psd = _resolve_input_path(psd_path, ALLOWED_PSD_EXTENSIONS)
+        resolved_psd = _resolve_input_path(psd_file, ALLOWED_PSD_EXTENSIONS)
         psd = PSDImage.open(resolved_psd, strict=False)
         source_image = _tensor_to_pil(mockup_image)
         if source_image is None:
@@ -374,12 +358,20 @@ class PSDMockupEmbedder:
                 }
             )
 
+        if isinstance(output_width, (int, float)) and output_width and output_width > 0:
+            target_w = int(output_width)
+            if target_w > 0 and target_w != base_rgba.width:
+                ratio = target_w / base_rgba.width
+                target_h = max(1, int(round(base_rgba.height * ratio)))
+                base_rgba = base_rgba.resize((target_w, target_h), Image.LANCZOS)
+
         result_tensor = _pil_to_tensor(base_rgba)
         saved_path = _save_png(base_rgba, resolved_psd)
         debug_payload = {
             "psd": os.path.basename(resolved_psd),
             "layer_count": len(selected),
             "layers": metadata,
+            "output_size": {"width": base_rgba.width, "height": base_rgba.height},
         }
         if fallback_used:
             debug_payload["note"] = "Requested smart object names were not found; falling back to the first smart object layer."
@@ -387,13 +379,11 @@ class PSDMockupEmbedder:
 
 
 NODE_CLASS_MAPPINGS = {
-    "PSDFileUploader": PSDFileUploader,
     "PSDSmartObjectInspector": PSDSmartObjectInspector,
     "PSDMockupEmbedder": PSDMockupEmbedder,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "PSDFileUploader": "PSD File Upload",
     "PSDSmartObjectInspector": "PSD → Smart Object Info",
     "PSDMockupEmbedder": "PSD Mockup Embedder",
 }
