@@ -239,6 +239,36 @@ def _save_png(image: Image.Image, psd_path: str) -> str:
     return out_path
 
 
+class PSDFileUploader:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "psd_file": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "widget": "inputfile",
+                        "file_extensions": ["psd", "psb"],
+                    },
+                )
+            }
+        }
+
+    CATEGORY = "psd/mockup"
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("psd_path",)
+    FUNCTION = "upload"
+
+    def upload(self, psd_file: str):
+        """
+        The ComfyUI frontend uploads the file into ComfyUI/input automatically
+        when widget='inputfile'. We just echo the resulting relative path.
+        """
+        path = _resolve_input_path(psd_file, ALLOWED_PSD_EXTENSIONS)
+        return (path,)
+
+
 class PSDSmartObjectInspector:
     @classmethod
     def INPUT_TYPES(cls):
@@ -340,11 +370,13 @@ class PSDMockupEmbedder:
 
 
 NODE_CLASS_MAPPINGS = {
+    "PSDFileUploader": PSDFileUploader,
     "PSDSmartObjectInspector": PSDSmartObjectInspector,
     "PSDMockupEmbedder": PSDMockupEmbedder,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "PSDFileUploader": "PSD File Upload",
     "PSDSmartObjectInspector": "PSD → Smart Object Info",
     "PSDMockupEmbedder": "PSD Mockup Embedder",
 }
