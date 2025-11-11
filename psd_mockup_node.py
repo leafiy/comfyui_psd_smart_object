@@ -270,40 +270,15 @@ def _composite_layers(psd: PSDImage, layer_ids: Sequence[int]) -> Image.Image:
     return psd.composite(layer_filter=filter_fn)
 
 
-def _compute_shading_components(stack_image: Image.Image, base_image: Image.Image):
-    stack_rgba = stack_image.convert("RGBA")
-    base_rgba = base_image.convert("RGBA")
-    stack_arr = np.array(stack_rgba).astype(np.float32) / 255.0
-    base_arr = np.array(base_rgba).astype(np.float32) / 255.0
-    base_rgb = base_arr[..., :3]
-    stack_rgb = stack_arr[..., :3]
-    base_alpha = base_arr[..., 3:4]
-
-    multiplier = np.ones_like(base_rgb, dtype=np.float32)
-    mask = base_alpha > 1e-3
-    if np.any(mask):
-        denom = np.clip(base_rgb, 1e-3, None)
-        ratio = stack_rgb / denom
-        ratio = np.clip(ratio, 0.0, 4.0)
-        multiplier[mask.repeat(3, axis=2)] = ratio[mask.repeat(3, axis=2)]
-
-    base_alpha_rgb = np.repeat(base_alpha, 3, axis=2)
-    multiplier = multiplier * base_alpha_rgb + (1.0 - base_alpha_rgb)
-    alpha = stack_arr[..., 3:4]
-    alpha_img = Image.fromarray((np.clip(alpha, 0.0, 1.0) * 255).astype(np.uint8).squeeze(-1), mode="L")
-    return multiplier, alpha_img
-
-
-def _apply_shading_map(image: Image.Image, multiplier: np.ndarray) -> Image.Image:
-    if multiplier is None:
-        return image
-    rgba = image.convert("RGBA")
-    arr = np.array(rgba).astype(np.float32) / 255.0
-    h, w, _ = arr.shape
-    if multiplier.shape[:2] != (h, w):
-        return image
-    arr[..., :3] = np.clip(arr[..., :3] * multiplier, 0.0, 1.0)
-    return Image.fromarray((arr * 255).astype(np.uint8), mode="RGBA")
+def _alpha_mask_from_image(image: Image.Image) -> Optional[Image.Image]:
+    if image is None:
+        return None
+    if image.mode != "RGBA":
+        image = image.convert("RGBA")
+    alpha = image.split()[-1]
+    if not alpha.getbbox():
+        return None
+    return alpha
 
 
 def _output_directory() -> str:
@@ -425,25 +400,22 @@ class PSDMockupEmbedder:
                 left, top, right, bottom = info.bbox
                 quad = (left, top, right, top, right, bottom, left, bottom)
 
-            stack_layers = _collect_clipping_stack(layer)
-            stack_ids = [l.layer_id for l in stack_layers if hasattr(l, "layer_id")]
-            stack_image = _composite_layers(psd, stack_ids) if stack_ids else None
-            base_image = _composite_layers(psd, [layer.layer_id])
-            shading_multiplier = None
-            alpha_mask = None
-            if stack_image is not None:
-                shading_multiplier, alpha_mask = _compute_shading_components(stack_image, base_image)
+        stack_layers = _collect_clipping_stack(layer)
+        overlay_layers = stack_layers[1:] if len(stack_layers) > 1 else []
+        overlay_ids = [l.layer_id for l in overlay_layers if hasattr(l, "layer_id")]
+        overlay_image = _composite_layers(psd, overlay_ids) if overlay_ids else None
+        base_image = _composite_layers(psd, [layer.layer_id])
+        alpha_mask = _alpha_mask_from_image(base_image) or _polygon_mask(quad, canvas_size)
 
-            warped = _warp_image_to_canvas(source_image, quad, canvas_size)
-            warped = _apply_shading_map(warped, shading_multiplier)
-            fallback_mask = _polygon_mask(quad, canvas_size)
-            composite_mask = alpha_mask if alpha_mask and alpha_mask.getbbox() else fallback_mask
-            base_rgba = Image.composite(warped, base_rgba, composite_mask)
-            metadata.append(
-                {
-                    "layer_id": info.layer_id,
-                    "name": info.name,
-                    "quad": quad,
+        warped = _warp_image_to_canvas(source_image, quad, canvas_size)
+        base_rgba = Image.composite(warped, base_rgba, alpha_mask)
+        if overlay_image is not None:
+            base_rgba = Image.alpha_composite(base_rgba, overlay_image.convert("RGBA"))
+        metadata.append(
+            {
+                "layer_id": info.layer_id,
+                "name": info.name,
+                "quad": quad,
                 }
             )
 
