@@ -256,10 +256,21 @@ def _save_png(image: Image.Image, psd_path: str) -> str:
 class PSDFileUploader:
     @classmethod
     def INPUT_TYPES(cls):
-        files = _list_input_files(ALLOWED_PSD_EXTENSIONS)
-        if not files:
-            files = ["<upload PSD via ⬆ icon>"]
-        return {"required": {"psd_file": (files,)}}
+        psd_files = _list_input_files(ALLOWED_PSD_EXTENSIONS)
+        if not psd_files:
+            psd_files = ["<upload or pick PSD>"]
+        return {
+            "required": {
+                "psd_file": (
+                    psd_files,
+                    {
+                        "file_upload": True,
+                        "file_upload_types": ["psd", "psb"],
+                        "tooltip": "Click the upload icon to add a PSD/PSB into ComfyUI/input",
+                    },
+                )
+            }
+        }
 
     CATEGORY = "psd/mockup"
     RETURN_TYPES = ("STRING",)
